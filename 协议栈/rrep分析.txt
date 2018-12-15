@@ -1,0 +1,48 @@
+43-77:rrep消息包创建函数rrep_create().
+RREP *NS_CLASS rrep_create(u_int8_t flags,
+			   u_int8_t prefix,
+			   u_int8_t hcnt,
+			   struct in_addr dest_addr,
+			   u_int32_t dest_seqno,
+			   struct in_addr orig_addr, u_int32_t life)
+众所周知，RREP消息包含prefix，hop count，目的节点IP地址序列号，源IP地址，生命周期等，本函数根据传进的参数分别对新建的rrep消息初始化。
+79-89：rrep路由应答确认创建函数rrep_ack_create()。
+RREP_ack *NS_CLASS rrep_ack_create()
+创建路由应答确认分组消息并产生提示信息“Assembled RREP_ack”
+91-107：rrep_ack消息处理函数rrep_ack_process()。
+void NS_CLASS rrep_ack_process(RREP_ack * rrep_ack, int rrep_acklen,
+			       struct in_addr ip_src, struct in_addr ip_dst)
+首先判断当前节点的路由表中是否有接收到的rrep_ack消息的源IP地址，若没有则寿命当前节点中没有到改地址的路径，因此接收到的rrep_ack消息非法，直接返回。如果包含路由表项时，则移除当前计时器。
+109-125：rrep扩展信息添加函数rrep_add_ext()。
+AODV_ext *NS_CLASS rrep_add_ext(RREP * rrep, int type, unsigned int offset,
+				int len, char *data)
+127-180：rrep消息发送函数rrep_send()。
+void NS_CLASS rrep_send(RREP * rrep, rt_table_t * rev_rt,
+			rt_table_t * fwd_rt, int size)
+    133-135：如果当前路由表项为空则不能发送rrep消息。
+    141-143：检查是否应该发送rrep_ack消息。
+    149-150：当接收到的rreq消息目的地址的IP地址是当前节点的邻居节点，我们很有可能面临这样单项链路这样一种尴尬的情形，所以应该首先发送一个rrep_ack消息。
+    155-159：当设置单向路由时，必须移除期间内的所有hello计时器，之所以这么做是因为当我们决定忽略hello消息时，路由将会终止。
+    173-175：更新fwd_rt和rev_rt的先驱路由表。
+182-232：rrep消息转发函数rrep_forward()。
+void NS_CLASS rrep_forward(RREP * rrep, int size, rt_table_t * rev_rt,
+			   rt_table_t * fwd_rt, int ttl)
+    186-194：这一段代码进行了必要的判断，当fwd_rt 或 rev_rt之中的一个路由不存在时，则无法进行相应的转发，因此执行立即返回。同理，当rrep消息为空时，也应立即返回。
+    206-209：如果RREP的源不是邻居，那么我们必须找到邻居（链表）条目，这是指向RREP源的下一跳……
+    211-219：如果接收RREQ的节点是邻居，那么我们可能会面临单向链路……最好请求RREP-ack
+    222-231：更新跳数，发送rrep类型套接字，更新路由表超时信息。
+235-411:rrep消息处理函数rrep_process()。
+void NS_CLASS rrep_process(RREP * rrep, int rreplen, struct in_addr ip_src,
+			   struct in_addr ip_dst, int ip_ttl,
+			   unsigned int ifindex)
+    252-255：在受影响的字段上转换为正确的字节顺序，便于处理。
+    257：增加RREP跳数以考虑中间节点……
+    259-264：判断收到的rrep消息是否小于下限值，若成立则立即返回。
+    267-268：忽略那些旨在创建通往自我的路径的消息
+。
+    277-308：确认是否存在扩展数据，并且根据情况处理。
+    312-337：检查我们是否应当转发路由。在315-318行，如果我们没有当前rrep的目的地在路由表中，那么我们就在路由表上加上这一项。
+    342-350：当RREP_ACK消息包的flag被置为1的时候，我们必须向目的节点发送rrep的消息。
+    382-407：如果断开的路由属于修复状态，那么NO DELETE RERR消息应该被发送到路由的源节点，所以就导致重新进行路由发现过程。
+415-428：在RREP中包括Hello Interval扩展并返回新的偏移量的函数rrep_add_hello_ext()。
+int rrep_add_hello_ext(RREP * rrep, int offset, u_int32_t interval)

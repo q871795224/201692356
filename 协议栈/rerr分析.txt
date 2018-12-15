@@ -1,0 +1,19 @@
+38-56：rrer消息的创建函数rerr_create()。
+RERR *NS_CLASS rerr_create(u_int8_t flags, struct in_addr dest_addr,
+			   u_int32_t dest_seqno)
+新建rrer消息，并将函数参数：dest_addr(不可达目的节点IP地址)，dest_seqno(不可达目的节点序列号)复制给rerr的相应参数。
+58-67：不可达目的节点添加函数rerr_add_udest()。
+void NS_CLASS rerr_add_udest(RERR * rerr, struct in_addr udest,
+			     u_int32_t udest_seqno)
+定义RERR_udest*类型变量ud记录不可达节点的信息，包括IP地址以及序列号等。
+70-210:rerr消息处理函数rerr_process()。
+void NS_CLASS rerr_process(RERR * rerr, int rerrlen, struct in_addr ip_src,
+			   struct in_addr ip_dst)
+    86-92：判断接收参数rerrlen，即rerr消息的大小，若其小于下限值RERR_CALC_SIZE(rerr),则输出警示消息并返回。
+    96-103：检查不可达目的节点，并循环输出其IP地址以及序列号。
+    112-116检查rerr消息中不可达节点的目的序列号与路由表项中保存的最新相应节点的序列号，若后者大于前者说明消息已过期，直接返回。
+    124-130：调用rt_table_invalidate()使路由rt无效，随后将rt的目的节点序列号更新为消息包中相应的目的节点序列号。
+    135-150：半段先驱列表是否为空，若为空，则在rerr消息添加目的IP为不可达节点。
+    154-167：决定新的前驱列表是否使这个成为非单播RERR，若pr的邻居节点地址不是rerr单播地址，清空rerr单播地址。
+    176-183：为所有不可达目的节点删除先驱路由列表。
+    186-209：如果构造的rerr消息的dest_count=1，那么现在即单播rerr消息；否则，我们只应该向包含断裂路由先驱节点的端口发送rerr消息。

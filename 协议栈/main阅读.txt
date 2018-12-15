@@ -1,0 +1,158 @@
+在main函数中
+50~71：变量初始化
+75~95：参数声明
+97~129：定义void usage(int status)，用于打印所有命令行参数及其作用
+131~201：定义int set_kernel_options()，用于设置内核选项
+203~231：定义int find_default_gw(void)，用于寻找默认网关
+236~256：struct sockaddr_in *get_if_info(char *ifname, int type)，根据名称和类型，寻找相应接口，并返回相应信息
+261~264：定义结构体callback；用于将事件储存，便于未来回调处理。声明了callback数组 callbacks[5]
+268~278：定义int attach_callback_func(int fd, callback_func_t func)增加一个callback数据结构元素，包括一个描述符、一个函数，这个回调是干啥的？
+
+这里我们将了解如何加载内核模块……如果模块位于当前目录中。用那些。否则，回到mod.
+284~327：void load_modules(char *ifname)装载内核模块，若模块在当前目录则使用，否则调用modprode
+329~338：void remove_modules(void)删除某个模块
+340~463：void host_init(char *ifname)初始化某个端口
+466~479：void signal_handler(int type)信号处理器，根据信号种类不同，处理不同
+
+481：int main
+
+483：
+484：定义了名为rfds，readers的fd_set类型变量。实际上是文件描述字集。
+select()机制中提供一fd_set的数据结构，实际上是一long类型的数组，每一个数组元素都能与一打开的文件句柄（不管是socket句柄，还是其他文件或命名管道或设备句柄）建立联系，建立联系的工作由程序员完成，当调用select()时，由内核根据IO状态修改fd_set的内容，由此来通知执行了select()的进程哪一socket或文件发生了可读或可写事件。
+485：
+486:int daemonize（守护进程）=0;
+487:定义了timeval类型的变量指针 timeout
+	timeval是一个结构体，在time.h中定义为：
+	struct timeval
+	{
+ 	    __time_t tv_sec;                /* Seconds. */
+ 	    __suseconds_t tv_usec;      /* Microseconds. */
+	};
+	其中，tv_sec为Epoch（1970-1-1零点零分）到创建struct timeval时的秒数，tv_usec为微秒数，即秒后面的零头。"
+488：timespec变量timeout_spec
+	struct timespec {
+		time_t tv_sec; // seconds 
+		long tv_nsec; // and nanoseconds 
+	};
+	struct timespec有两个成员，一个是秒，一个是纳秒, 所以最高精确度是纳秒。
+489：sigaction变量sigact
+	struct sigaction {
+	    void    (*sa_handler)(int);    /* addr of signal handler, or SIG_IGN, or 						SIG_DFL */
+	    sigset_t    sa_mask;           /* additional signals to block */
+	    int    sa_flags;               /* signal options */
+	
+   	     /* alternate handler */
+ 	    void    (*sa_sigaction)(int, siginfo_t *, void *);
+	};
+490：定义信号集sigset_t mask，origmask
+493：最开始定义的char* progame，赋值为在argv[0](第一个字符串数组)中查找最后一个"/"的地址；argv指的是字符串数组的指针
+495~498：若progame地址存在，则++；若不存在，设为argv[0]（第一个字符串数组）
+501：设置debug缺省值（1）
+503：运用memset函数，将sigact数据块初始化
+504：设置sigact中的 sa_handler 为signal_handler，但是不知道signal_handler是什么
+507~509：调用sigaction函数。sigaction函数的功能是检查或修改与指定信号相关联的处理动作？
+int sigaction( int signo, const struct sigaction *restrict act, struct sigaction 什么用?*restrict oact);
+返回值：若成功则返回0，若出错则返回-1？	
+其中，参数signo是要检测或修改其具体动作的信号编号。若act指针非空，则要修改其动作。关闭如果oact指针非空，则系统经由oact指针返回该信号的上一个动作。此函数使用下列结构：
+信号？	信号编号：
+	SIGHUP      1           Term    终端的挂断或进程死亡
+	SIGINT      2           Term    来自键盘的中断信号
+	SIGTERM     15          Term    终止
+511~513：调用sigaddset，sigaddset(sigset_t *set,int signum)用来将参数signum 代表的信号加入	至参数set 信号集里。即将（“SIGHUP”“SIGINT”“SIGTERM”）加入信号集mask
+516~517：应该和debug有关
+521：sigprocmask()函数，
+	int sigprocmask(int how, const sigset_t *restrict set, sigset_t *restrict oldset);
+	用于改变进程的当前阻塞信号集,也可以用来检测当前进程的信号掩码。其	操作依参数	how来决定。如果参数oldset不是NULL指针，那么目前的信号屏蔽字会由此指针返回。如果set	是一个非空指针，则参数how指示如何修改当前信号屏蔽字。每个进程都有一个用来描述哪些	信号递送到进程时将被阻塞的信号集，该信号集中的所有信号在递送到进程后都将被阻塞。
+初始化工作至此结束？
+
+/*
+524：进入永久循环
+525~527 定义int opt，使用getopt_long函数进行长选项的命令行解析。
+	int getopt_long(int argc, char * const argv[],const char *optstring, const struct 	option *longopts,int *flag);
+	函数中的argc和argv通常直接从main()的两个参数传递而来。optsting是选项参数组成的字符	串：
+字符串optstring可以下列元素:
+1.单个字符，表示选项，
+2.单个字符后接一个冒号：表示该选项后必须跟一个参数。参数紧跟在选项后或者以空格隔开。该参数的指针赋给optarg。
+3 单个字符后跟两个冒号，表示该选项后可以有参数也可以没有参数。如果有参数，参数必须紧跟在选项后不能以空格隔开。该参数的指针赋给optarg。（这个特性是GNU的扩张）。
+其中，longopts在开头定义，没看明白？
+
+532及之后：根据读取的字符不同，进入不同函数体
+533：读取‘0’，跳出循环
+535~538：设定
+
+613：若守护进程daemonize=1，进入if。守护进程是否意味着，为了守护原有进程，所以开辟子进程执行如下命令，原有进程执行此代码。？存疑
+614：开辟子进程，关闭父进程，子进程继续执行。
+618~619：关闭文件，但是不知道参数1,2是什么？存疑
+620：使用setsid函数，与终端脱离。
+setsid：当进程是会话的领头进程时setsid()调用失败并返回（-1）。setsid()调用成功后，返回新的会话的ID，调用setsid函数的进程成为新的会话的领头进程，并与其父进程的会话组和进程组脱离。由于会话对控制终端的独占性，进程同时与控制终端脱离
+623：atexit的功能是，先进后出。
+cleanup函数：应该是清除路由表啊什么的函数？存疑	
+626~636：初始化
+
+*/
+524~605：进入永真循环，根据读取的参数不同，执行不同的分支。具体情况如下
+待完善？
+539~542：-f，开启链路层反馈
+546~548：-i，表示要绑定的端口
+581~583：-x，禁用RREQ消息的拓展环搜索法
+606~610：检查是否在root权限下执行
+613~621：检查daemonize变量值，为1进入if代码块。
+	614~615：开辟子进程，关闭父进程。
+	618~619：子进程关闭标准输入输出错误流。
+	620：调用setsid函数使子进程成为新的会话的领头进程，并与其父进程的会话组和进程组脱离。
+623：调用atexit函数登记了函数cleanup，用于在main函数执行结束后，执行atexit中注册的函数cleanup()，用于？详见691行
+626~637：调用各初始化函数，进行数据接口，服务的初始化
+	626：初始化路由表
+	627：初始化日志
+	629：初始化host
+	631：初始化nl
+	632	
+	633：初始化aodv_socket
+	635~636：若开启链路层反馈，则初始化链路层
+
+
+
+
+
+
+
+641~646：设置套接字，什么用？nr_callbacks,nfds都是干啥的
+	641：清空文件描述符集readers，即初始化
+	642：for（i<nr_callbacks）
+		643：将callbacks[i].fd加入描述符集readers
+		644：if(callbacks[i].fd >= nfds)
+			645:nfds = callbacks[i].fd +1
+649~655：在重新启动计时器上设置等待
+	649：if(wait_on_reboot)即未禁用重启延迟的等待，没有设置-D
+		650：初始化timer worb_timer，初始化等待重启计时器
+		651：为worb_timer增加DELETE_PERIOD长度的时间
+		652~655：log记录
+第一个hello
+658：若不设置-o（只在转发数据包时发送hello）&&不设置-f（开启链路层反馈）
+	659：hello_start()?
+661:若设置-r,即每隔一段时间记录路由表
+	662：初始化log_rt_table；?
+664~688:永真循环
+	665：将readers的内容复制进rfds中
+	667：timeout = TQ队列中获取的新的timer
+	669~670：将timeout变得更加精确，至纳秒级，赋值给timeout_spec
+	使用pselect函数进行IO复用，允许进程指示内核等待多个事件中任一个发生，并只在有一个或多个事件发生或经历一段指定的时间后才唤醒它，并调用相应的回调函数来处理。
+	672：调用pselect阻塞进程，当rfds可读时，唤醒进程
+		673~676：若返回值<0,即出错，则报错并进入下一次循环
+	679~687：若n>0，即唤醒进程
+		680~686：在执行回调函数时，我们不需要任何定时器SIGALRM，因此我们阻塞定时器…… 
+			684：函数指针执行回调函数？实际上调用的是aodv_socket_read函数
+689：return 0；
+
+692~704:定义了静态函数static void cleanup(void)
+	694：写入日志
+	695：调用rt_table_destroy();
+	696：调用aodv_socket_cleanup();
+	698：if(llfeedback=1),即开启链路层反馈
+		699：调用llf_cleanup();
+	701：调用log_cleanup();
+	702：调用nl_cleanup();
+	703：调用remove_modules();
+
+
+

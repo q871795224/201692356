@@ -1,0 +1,58 @@
+aodv_hello.h
+34: #define ROUTE_TIMEOUT_SLACK 100
+35: #define JITTER_INTERVAL 100
+
+aodv_hello.c
+47-58：long NS_CLASS hello_jitter() 函数，返回一个长整数，hello抖动函数。
+在hello_jittering 不为0时返回长整数，为0返回0。
+60-71：发送hello消息的准备函数hello_start()。
+void NS_CLASS hello_start()
+    62-63：检测hello_timer计时器是否开启，若开启表明hello消息已发送，则直接返回。
+    67-70：在Debug.h中宏定义的DEBUG函数第三个参数设置输出信息"Starting to send HELLOs!"表示此时准备要发送hello消息。随后调用的timer_init函数的传入三个参数，分别是&hello_timer：启动hello_timer计时器；&NS_CLASS hello_send：hello_send；传入数据NULL。随后即执行hello_send函数。
+73-78：hello消息发送停止函数hello_stop()。
+void NS_CLASS hello_stop()
+    75-77：当当前节点没有任何活跃路径与相邻节点相连时治兴hello_stop函数。首先调用DEBUG函数输出信息"No active forwarding routes-stopped sending HELLOs!"，接下来移除在准备发送hello消息时绑定的计时器hello_timer。
+80-164：hello消息发送函数hello_send()。
+void NS_CLASS hello_send(void *arg)
+变量说明：
+    rrep：数据类型：RREP*；HELLO消息帧其实就是TTL=1的RREP帧。ttl为IP数据包字段，表示该帧的传播跳数。
+    dest：数据类型：struct in_addr；保存目的节点地址。
+    now：struct timeval；记录当前时间。
+    91：gettimeofday()：得到当前时间和时区，分别写到tv和tz中，此处tz为NULL则不向tz写.
+    93-96： 判断若当前时间和最后一个hello消息发送的时间差大于路由超时时间，则可以确定当前节点没有任何一条活跃路径与相邻节点相邻，因此执行hello_stop()。
+    99-100：获取当前时间和最后一个广播分组发送时的时间差。
+    104：判断第99行计算的时间差与发送hello消息的周期HELLO_INTERVAL的大小，保证如果在HELLO_INTERVAL周期内已经发送hello消息的情况下不会重复发送消息。
+    109-115： 程序判断如果宏定义了 DEBUG_HELLO 则显示广播 hello 消息。112行实现了 hello 消息的创建，包括提供目标结点 IP 地址：DEV_NR(i).ipaddr、目标结 点 序 列 号 、 源 结 点 IP 地 址 ， 以 及 消 息 的 生 命 周 期 ：ALLOWED_HELLO_LOSS*HELLO_INTERVAL。
+    118-150：组装包含邻居集的RREP扩展。
+        136-145：如果一个条目有一个活跃的hello计时器，我们假设我们正在从该节点接收hello消息。
+    151-152：广播这个ttl为1的rrep消息(hello消息)。
+    155：计时器超时设置。
+    156-163：时间差比hello消息发送周期小的时候，不进行发送。
+168-286：hello消息处理函数hello_process()。
+void NS_CLASS hello_process(RREP * hello, int rreplen, unsigned int ifindex)
+变量：
+    hello_seqno:类型：u_int32_t；作用：记录 hello 消息目的节点序列号；
+    hello_interval: 类型： u_int32_t ；作用：设置 hello 消息周期为HELLO_INTERVAL;
+    hello_dest:类型：struct in_addr；作用：记录 hello 消息目的结点的 IP 地址；
+    now：类型：struct timeval；作用：记录当前时间。
+    178-181：首先调用 gettimeofday()获取当前时间，接着设置 hello_dest 和
+hello_seqno 的值分别为接收到的 hello 消息的目的结点和序列号。
+    192-234：检查hello消息间隔扩展。
+        196-208：如果是hello希奥希间隔扩展，在扩展数据长度为4的时候，将数据拷贝到hello_interval地址上。如果长度不为4，不拷贝数据。
+        209-221：如果是邻居设置扩展，RREP_HELLO_NEIGHBOR_SET_EXT，将扩展数据部分的值赋给ext_neighbor.s_addr，也就是扩展的邻居地址，如果扩展邻居地址与本机IP地址相同，flags按位与RT_UNIDIR的反。
+        222-227：若不是上述两种扩展类型，则丢弃此扩展数据。
+    241-244 我们知道只有当邻居节点收到三个连续的 hello 消息时才有效，根据
+此设置 state 的值为“INVALID”或“VALID”。
+    248-261 当一个结点从邻近结点收到一个 hello 消息，该节点应该确保它与此
+临近结点有一条活动的路由。当在路由表中没有活跃或者过期的路由表项时，我
+们应该添加一个新的表项。rt_table_insert()函数输入的一系列参数即创建了
+表项。
+    265-280 当路由表中已有活跃的路由表项时，那么这条路有的生命周期应该增
+加，至少为：ALLOWED_HELLO_LOSS*hello_interval。这条通往临近结点的路由，
+必须包含 hello 消息中最新的目的序列号。rt_table_update()函数完成了此功
+能。
+289-298hello消息超时更新(增加超时时间范围)函数 hello_update_timeout()。
+NS_INLINE void NS_CLASS hello_update_timeout(rt_table_t * rt,
+    289：宏定义 HELLO_DELAY，因为网络上的处理延迟，所以我们允许 hello消息存在延时，在这里我们设置为 50。
+
+RT_UNIDIR？？ 值为0x1
