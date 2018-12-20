@@ -1,0 +1,106 @@
+48-49： 定义接受和发送的buffer；
+51：外部定义某些int变量
+53：静态函数void aodv_socket_read(int fd) 声明
+58：声明一个静态函数 struct  cmsghdr *__cmsg_nxthdr_fix(void *__ctl, size_t __size,
+					 struct cmsghdr *__cmsg)
+        其返回值是结构体类型；
+58-69：定义函数 struct  cmsghdr * __cmsg_nxthdr_fix(void *__ctl, size_t __size,
+					 struct cmsghdr *__cmsg)
+此函数是对libc提供的CMSG_NXTHDR函数的替代，可能由于原来的函数存在BUG。替代后的函数根据四个参数创建一个类型为cmsghdr的结构体，并检查是否 __ptr+1 - __ctl >size, 如果条件为真，则返回空，否则返回创建好的结构体。
+注释： CMSG_ALIGN : 字节对齐函数
+           CMSG_NXTHDR : 源代码如下
+cmsghdr* __cmsg_nxthdr(msghdr* msg, cmsghdr* cmsg) {
+  cmsghdr* ptr;
+  ptr = reinterpret_cast<cmsghdr*>(reinterpret_cast<char*>(cmsg) + CMSG_ALIGN(cmsg->cmsg_len));
+  size_t len = reinterpret_cast<char*>(ptr+1) - reinterpret_cast<char*>(msg->msg_control);
+  if (len > msg->msg_controllen) {
+    return NULL;
+  }
+  return ptr;
+}
+71-74：重载了上述函数__cmsg_nxthdr_fix ，只有两个参数，通过msghdr找到control和controllen参数并返回调用__cmsg_nxthdr_fix 的调用结果。
+79-107：aodv套接字初始化函数
+    82-83：定义了两个结构体；
+    84-88：变量初始化；
+    92-95：如果this_host.nif 为0，退出程序 （exit(0)非正常退出）；
+    98-107：为每个启用AODV的接口打开一个套接字
+108-116：打开数据包发送套接字，使用ifdef 语句决定是否执行此段代码
+     注释：ifdef aa， 如果定义aa，则西面代码到endif之前将被执行，反之不执行；
+117-182：将套接字绑定到AODV端口号，以及后续设置套接字选项，设置或绑定失败就返回错误并退出；
+    memset函数：memset是计算机中C/C++语言初始化函数。作用是将某一块内存中的内容全部设置为指定的值， 这个函数通常为新申请的内存做初始化工作。
+    123-129：将套接字绑定到AODV端口号，绑定失败就返回错误并退出。
+    130-162：套接字中，关于套接字中SO_BROADCAST，SO_BINDTODEVICE，SO_PRIORITY，IP_RECVTTL，IP_PKTINFO这些选项的设置，设置失败则返回错误并退出；
+    162-182：一个ifdef endif 语句套，关于数据包发送套接字的绑定与设置；
+184-196：设置接受最大缓冲区大小
+198-203：附加回调函数，若设置失败则返回错误并推出。
+211-251：void NS_CLASS aodv_socket_process_packet(AODV_msg * aodv_msg, int len,
+					 struct in_addr src,
+					 struct in_addr dst,
+					 int ttl, unsigned int ifindex)
+以上是NS_CLASS aodv_socket_process_packet函数的声明，此函数负责辨别接收到的包的类型，并且对不同类型的包进行不同处理，此段代码负责此函数的实现。
+    218-222：如果包是一个HELLO消息，就把控制传递给hello_process函数。
+    225：根据消息所包含的信息添加或更新邻居节点的信息。
+    229-250：如果是HELLO以外的消息，根据类型记录路由日志并处理收到的消息
+
+注释：alog是nslog的宏定义
+// ALog will always output like NSLog
+#define ALog(fmt, ...) NSLog((@"%s [Line %d] " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__);
+1) __VA_ARGS__是一个可变参数的宏，这个可变参数的宏是新的C99规范中新增的，目前似乎只有gcc支持（VC6.0的编译器不支持）。宏前面加上##的作用在于，当可变参数的个数为0时，这里的##起到把前面多余的","去掉,否则会编译出错。
+2) __FILE__ 宏在预编译时会替换成当前的源文件名
+3) __LINE__宏在预编译时会替换成当前的行号
+4) __FUNCTION__宏在预编译时会替换成当前的函数名称
+254-289 ： void NS_CLASS recvAODVUUPacket(Packet * p) 此段代码负责 NS_CLASS recvAODVUUPacket 函数的实现，此函数负责接收aodv消息。
+    256-260：变量定义以及初始化；
+    262-265：使用变量记录报的信息，源地址，目的地址，长度和ttl(被丢弃前允许的最大跳数)
+    269-288：在确认数据包是AODV数据包且是从外向内方向的数据包时，报数据存入缓存空间，然后释放数据包。如果数据包是本地产生的，就忽略掉。在确认数据包是AODV消息后，调用aodv_socket_process_packet函数对消息进行分类和处理。
+
+注释：memcmp是比较内存区域buf1和buf2的前count个字节。该函数是按字节比较的。
+          int memcmp(const void *buf1, const void *buf2, unsigned int count);
+          返回值：当buf1<buf2时，返回值小于0       当buf1==buf2时，返回值=0
+          当buf1>buf2时，返回值大于0
+          memcpy指的是c和c++使用的内存拷贝函数，memcpy函数的功能是从源内存地址的起始位置开始拷贝若干个字节到目标内存地址中。
+          void *memcpy(void *dest, const void *src, size_t n);
+
+291-363 ：套接字读取函数aodv_socket_read的实现。
+    此函数的头：static void aodv_socket_read(int fd)  
+    293-322：获取套接字中的信息。
+    325-339：从控制消息中获取ttl和目的地地址。
+    341-344：如果ttl<0,则忽略此数据包。
+    347-351：如果是本地产生的数据包，就忽略掉。
+    355-359：获取套接字中的device info。
+    362：调用aodv_socket_process_packet函数对消息进行分类和处理。
+366-545：aodv_socket_send函数负责套接字的发送。
+    void NS_CLASS aodv_socket_send(AODV_msg * aodv_msg, struct in_addr dst,
+			       int len, u_int8_t ttl, struct dev_info *dev)
+以上是函数声明。
+    373-389：若没有定义NS_PORT，则执行此段代码。
+        377-378：如果我们在重新启动后处于等待阶段，不要发送任何RREP。
+        380-383：套接字参数设置。
+        386-389：设置ttl，设置失败则返回错误。
+    390-439：若定义了NS_PORT，则执行此段代码。
+此段代码通过将AODV_msg消息封装在包中，将AODV_msg消息发送到其他AODV-UU路由代理。注意：此方法仅用于向其他路由代理发送AODV数据包，而不用于转发“常规”IP数据包！
+        401-402：如果我们在重新启动后处于等待阶段，不要发送任何RREP。
+        409-412：分配包并得到指针ch，ih和ah。
+NS_PORT：直到现在才分配包。否则，分组uid(唯一ID)空间在模拟开始时不必要地耗尽，导致uid:s以大于0的值开始。
+        415：清除数据包中的AODVUU部分。
+        418：将消息内容复制到数据包中
+        421-426：设置 common(cmn) 的 header field。
+        429-431：设置 IP 的 header field。
+        434-435：设置端口号。  注意：路由代理的端口号，不是AODV端口号！
+        438：len 赋值给 retval。
+    446-492：启用速率限制的情况设置；
+如果启用了速率限制，请检查我们是发送RREQ还是RERR。在这种情况下，如果从上次发送该类型的分组以来的时间小于所允许的速率限制时间，则丢弃输出控制分组……
+        451-470：rreq启用速率限制的情况设置。
+        471-491：rerr启用速率限制的情况设置。
+    496-517：如果我们广播这个消息，我们更新上次广播的时间，以防止不必要的广播HELLO 消息。
+    517-537：不是广播不需要更新时间，发送数据即可。
+    540-544：不要打印HELLO消息。
+547-551：AODV_msg *NS_CLASS aodv_socket_new_msg(void)
+aodv_socket_new_msg 函数为新产生的数据包分配发送缓冲空间。
+554-558：
+AODV_msg *NS_CLASS aodv_socket_queue_msg(AODV_msg * aodv_msg, int size)
+aodv_socket_queue_msg 函数 将现有的AODV消息复制到发送缓冲区。
+560-572：void aodv_socket_cleanup(void)
+aodv_socket_cleanup 函数 用来清空套接字并将之关闭。
+
+？： 51： hello_qual_threshold  
