@@ -1,0 +1,30 @@
+time_queue.h中
+37~43：结构体timer
+list_t		l		链表指针
+int		used		?
+timeval		timeout		?
+timeout_func_t	handler		?
+void		*data		无类型指针
+45~57
+59~71
+
+
+
+time_queue.c中
+34：静态LIST(TQ)?
+43~56：int NS_CLASS timer_init(struct timer *t, timeout_func_t f, void *data)初始化timer
+
+
+141~157：int NS_CLASS timer_remove(struct timer *t)将t从链表中移除，若t存在于链表中，则返回1，否则返回0
+	143：int res = 1;
+	149：if(list_unattached(&t->l))若链表未连接
+		150：res = 0
+	151：else
+		152：将t前后节点相练，即从链表中删除
+	154：t->used = 0；将t设为未使用
+	156：返回res
+
+
+175~191：void NS_CLASS timer_set_timeout(struct timer *t, long msec)设置时间，增加msec长？
+	177：if(t->used)若timer t被使用
+		178：将t从链表中移除

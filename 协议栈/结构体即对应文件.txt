@@ -1,0 +1,112 @@
+结构体
+timer			timer_queue.h
+timeval			系统			微秒级时间，含两个long，一个表秒，一个表微秒
+in_addr			系统			ipv4地址
+list_t			list.h			链表的基本结构
+precursor		routing_table.h		邻居节点，含链表指针、ip地址
+rt_table		routing_table.h		路由表
+rt_table_t		routing_table.h		同上一条
+routing_table		routing_table.h		记录路由表信息，包括所有表项、有效表项数
+callback		main.c			？
+callback_func_t		?			?
+rtnl_handle		llf.c			句柄？
+
+静态变量值
+static int nr_callbacks = 0;		main.c		
+static char *ifname = NULL;		main.c	/* Name of interface to attach to */
+static struct rtnl_handle rth;		llf.c		
+静态函数
+static void cleanup(void)		main.c		用于清除路由表等信息
+
+被引用的变量
+int llfeedback				main.c		链路层反馈
+int wait_on_reboot			main.c		初始为1，若main参数为D，即禁用重启延迟的等待，值为0
+
+
+
+宏
+ACTIVE_ROUTE_TIMEOUT			？
+RT_UNIDIR        			0x1
+
+RT_REPAIR       			0x2
+
+RT_INV_SEQNO     			0x4
+
+RT_INET_DEST     			0x8	/* Mark for Internet destinations (to be relayed
+* through a Internet gateway. */
+
+RT_GATEWAY       			0x10
+
+
+#define K                       5
+
+
+/* Dynamic configuration values. Default numbers are for HELLO messages. */
+
+#define ACTIVE_ROUTE_TIMEOUT active_route_timeout
+
+#define TTL_START ttl_start
+
+#define DELETE_PERIOD delete_period
+
+
+
+/* Settings for Link Layer Feedback */
+
+#define ACTIVE_ROUTE_TIMEOUT_LLF    10000
+
+#define TTL_START_LLF               1
+
+#define DELETE_PERIOD_LLF           ACTIVE_ROUTE_TIMEOUT_LLF
+
+/* Settings for HELLO messages */
+
+#define ACTIVE_ROUTE_TIMEOUT_HELLO  3000
+
+#define TTL_START_HELLO             2
+
+#define DELETE_PERIOD_HELLO         K * max(ACTIVE_ROUTE_TIMEOUT_HELLO, ALLOWED_HELLO_LOSS * HELLO_INTERVAL)
+
+
+
+/* Non runtime modifiable settings */
+
+#define ALLOWED_HELLO_LOSS      2
+
+/* If expanding ring search is used, BLACKLIST_TIMEOUT should be?: */
+
+#define BLACKLIST_TIMEOUT       (2*2100+(7-x)/2+1+2)	RREQ_RETRIES * NET_TRAVERSAL_TIME + (TTL_THRESHOLD - TTL_START)/TTL_INCREMENT + 1 + RREQ_RETRIES
+
+#define HELLO_INTERVAL          1000
+
+#define LOCAL_ADD_TTL           2
+
+#define MAX_REPAIR_TTL          (105/10)		3 * NET_DIAMETER / 10
+
+#define MY_ROUTE_TIMEOUT        2 * ACTIVE_ROUTE_TIMEOUT
+
+#define NET_DIAMETER            35
+
+#define NET_TRAVERSAL_TIME      (2100)			2 * NODE_TRAVERSAL_TIME * NET_DIAMETER
+
+#define NEXT_HOP_WAIT           (50)			NODE_TRAVERSAL_TIME + 10
+#define NODE_TRAVERSAL_TIME     40
+
+#define PATH_DISCOVERY_TIME     (4200)			2 * NET_TRAVERSAL_TIME
+
+#define RERR_RATELIMIT          10
+
+#define RING_TRAVERSAL_TIME     (2*40*(x+2))			2 * NODE_TRAVERSAL_TIME * (TTL_VALUE + TIMEOUT_BUFFER)
+ 
+#define RREQ_RETRIES            2
+
+#define RREQ_RATELIMIT          10
+
+#define TIMEOUT_BUFFER          2
+
+#define TTL_INCREMENT           2
+
+#define TTL_THRESHOLD           7
+
+
+#define CALLBACK_FUNCS 		5
