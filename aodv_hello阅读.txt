@@ -1,4 +1,0 @@
-39：声明extern int变量 unidir_hack, receive_n_hellos, hello_jittering, optimized_hellos；？待完成：这些变量来自哪些文件
-40：声明静态timer 结构体 hello_timer ；该结构体来自timer_queue。
-47~58：为什么函数头有个NS_CLASS？hello_jitter（抖动）函数：如果hello_jittering不为0？，即正在抖动时，将根据是否定义了宏NS_PORT，返回不同的值。仿佛返回一个随机数？若hello_jittering为0，则返回0
-60~71：函数hello_start（），若hello_timer.used
