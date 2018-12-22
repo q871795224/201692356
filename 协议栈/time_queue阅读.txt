@@ -5,7 +5,8 @@ int		used		?
 timeval		timeout		?
 timeout_func_t	handler		?
 void		*data		无类型指针
-45~57
+45~57：static inline long timeval_diff(struct timeval *t1, struct timeval *t2)
+	返回两个timeval的差，比较不同
 59~71
 
 
@@ -13,6 +14,15 @@ void		*data		无类型指针
 time_queue.c中
 34：静态LIST(TQ)?
 43~56：int NS_CLASS timer_init(struct timer *t, timeout_func_t f, void *data)初始化timer
+
+
+当计时器超时时调用 
+59~95：void NS_CLASS timer_timeout(struct timeval *now)
+	从TQ中删除过期的计时器，并将它们添加到expTQ
+	68~76：从TQ中遍历计时器，若遍历到的计时器>当前时间，则跳出循环；否则，将其从TQ中删除，加入expTQ中
+	在expTQ中安全地执行过期的计时器，方法是在头部删除它们
+	79~94：当expTQ不为空，则从头部删除该计时器；
+		87~93：然后为过期计时器执行处理程序函数？
 
 
 141~157：int NS_CLASS timer_remove(struct timer *t)将t从链表中移除，若t存在于链表中，则返回1，否则返回0
@@ -28,3 +38,12 @@ time_queue.c中
 175~191：void NS_CLASS timer_set_timeout(struct timer *t, long msec)设置时间，增加msec长？
 	177：if(t->used)若timer t被使用
 		178：将t从链表中移除
+
+204~234：struct timeval *NS_CLASS timer_age_queue()从TQ中获取一个新的timer
+	214：检查空闲，若空，则返回null
+	217：调用timer_timeout()函数，删除过期的计时器
+	再次检查空闲，因为列表可能已经超时更新
+	221：检查空闲
+	224：取得TQ.next
+	226~232：将TQ.next赋值给remaining
+	233：返回remaining
