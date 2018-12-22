@@ -1,0 +1,80 @@
+61-96:rreq创建函数rreq_create（）。
+RREQ *NS_CLASS rreq_create(u_int8_t flags, struct in_addr dest_addr,
+			   u_int32_t dest_seqno, struct in_addr orig_addr)
+    64-74：创建RREQ类型指针，并对其结构体内项赋值（获取message中的信息）
+    78-79：在节点发起RREQ泛滥之前，它必须立即增加它的序列号……
+    81-88：rreq消息选项设置。
+98-114：向一个rreq消息中加入ext数据的函数rreq_add_ext（）函数，ext代表扩展数据。
+AODV_ext *rreq_add_ext(RREQ * rreq, int type, unsigned int offset,
+		       int len, char *data)
+    103-104：如果移位数下雨rreq部分的长度，返回空，无法加入数据。
+    106：将指针位置移到rreq+offset的位置。
+    108-109：设置ext数据的type(类型)和len(长度)。
+    111：将数据写到AODV_EXT_DATA(ext)的地址域。
+116-136：发送rreq消息的函数rreq_send()函数。
+void NS_CLASS rreq_send(struct in_addr dest_addr, u_int32_t dest_seqno,
+			int ttl, u_int8_t flags)
+    119-121：变量声明。
+    123：设置属性为广播。
+    126-127：检查我们是否应该强制执行无偿标志……（-G选项）。
+    130-135：在所有接口广播rreq消息，由rreq_create()创建rreq消息，由aodv_socket_send()函数发送消息。其中131-132 检查端口是否开启aodv路由。
+138-162：rreq消息转发函数rreq_forward() 函数。
+void NS_CLASS rreq_forward(RREQ * rreq, int size, int ttl)
+    140-145：获取源地址和设置目的地址。
+    147-148：如果TTL允许，则转发RREQ。（ttl>0）
+    151：使再发送缓冲区接收的消息进入队列。
+    153：增加跳数以考虑中间路线。
+    157-160：在所有端口广播消息。
+164-416：接收到的rreq消息的处理函数，rreq_process（）函数。
+void NS_CLASS rreq_process(RREQ * rreq, int rreqlen, struct in_addr ip_src,
+			   struct in_addr ip_dst, int ip_ttl,
+			   unsigned int ifindex)
+    189-190：忽略源自此节点的RREQ。我们要么这样做，要么缓冲我们自己发送的RREQ，就像我们对接收的其他人所做的那样。
+    196-201：检查data field 大小是否足够，不够则返回。
+    205-208：检查RREQ的前一跳是否在黑名单集中。如果是，则忽略RREQ。
+    211-212：忽略已经处理的RREQ。
+    216:现在缓冲这个RREQ，这样我们就不会在PATH_DISCOVERY_TIME中处理类似的RREQ。
+    219-234：确定是否存在任何RREQ扩展。
+    241：节点总是创建或更新RREQ源的REVERSE ROUTE条目。
+    244：计算延长的最小使用寿命。
+    246-260：将路由表信息储存到指针rev_rt。
+    268-270：这是对AODV-UU的草稿修改，以防止节点在RREP阶段创建自己的路由条目。如果节点上的反向路径与RREQ建议的反向路径不匹配，则简单地删除RREQ。
+    278-308：若定义了CONFIG_GATEWAY则执行此段代码，这是一个入口。
+        280：子网位置决策。
+        283-302：在子网位置是ipv4的时候，我们必须在发送RREP之前增加gw的序列号，否则中间节点将不转发RREP。
+    312-329：我们是RREQ的目的地吗？如果是这样，我们应该立即发送RREP...
+        317-327：我们是RREQ的目的地。将节点自身的序列号更新为当前序列号和RREQ中的序列号的最大值。   
+    329-415：我们是一个中间节点。检查是否有活动路由条目 。
+        335-374：生成RREP，即我们有足够新鲜的活动路由条目（该路由的目的地序列号大于RREQ中的序列号）。
+             345：该节点知道这是Internet目的地的RREQ，并且它具有到网关的有效路由。
+        378-386：判断接收到的rreq消息的序列号是不是足够的新，若不是说明是过时的消息，则不用转发。
+        402-414：前面许多goto forward 语句的跳转地点，是在我们没有足够新鲜的活动条目，也就是不包含rreq目的节点的路由信息的时候，继续广播(转发)rreq消息。
+420-477：为单播目的地执行路由发现的函数rreq_route_discovery()函数。
+void NS_CLASS rreq_route_discovery(struct in_addr dest_addr, u_int8_t flags,
+				   struct ip_data *ipd)
+    436-438：如果我们已经有了路由条目(当前路由表中有目的节点的路由表项)，则使用其中的信息。并且ttl的值设置为NET_DIAMETER。
+    440-451：在使用扩展环搜索的时候如何设置ttl。
+    470-472：为RREQ消息设置定时器。
+    458-461：等待RREP的路由表条目不应该在2*NET_TRAVERSAL_TIME之前被清除……
+    463：发送rreq消息。
+    466：记住这个我们正在寻找的目的地，将其加入seek_list。
+482-540：本地修复函数，rreq_local_repair()函数，它与路由发现函数非常相似……
+void NS_CLASS rreq_local_repair(rt_table_t * rt, struct in_addr src_addr,
+				struct ip_data *ipd)
+    506-511：使初始ttl用于RREQ。草案中提到的MIN_REPAIR_TTL是到目的地的最后已知跳数
+    518-524：重置超时处理程序，可能是先前的local_._timeout。
+    528-537：记住我们正在寻找这个目的地并设置计时器。
+542-572：rreq消息记录增加函数rreq_record_insert()函数。
+NS_STATIC struct rreq_record *NS_CLASS rreq_record_insert(struct in_addr orig_addr,
+					                 u_int32_t rreq_id)
+574-587：rreq消息记录寻找函数rreq_record_find()。
+NS_STATIC struct rreq_record *NS_CLASS rreq_record_find(struct in_addr orig_addr,
+						u_int32_t rreq_id)
+589-595：rreq消息记录超时函数rreq_record_timeout()。
+void NS_CLASS rreq_record_timeout(void *arg)
+597-621：rreq黑名单添加函数rreq_blacklist_insert()。
+struct blacklist *NS_CLASS rreq_blacklist_insert(struct in_addr dest_addr)
+623-634：rreq黑名单查找函数rreq_blacklist_find()。
+struct blacklist *NS_CLASS rreq_blacklist_find(struct in_addr dest_addr)
+636-643：rreq黑名单超时函数 rreq_blacklist_timeout()。
+void NS_CLASS rreq_blacklist_timeout(void *arg)

@@ -104,3 +104,10 @@ aodv_socket_queue_msg 函数 将现有的AODV消息复制到发送缓冲区。
 aodv_socket_cleanup 函数 用来清空套接字并将之关闭。
 
 ？： 51： hello_qual_threshold  
+
+aodv_socket.h:
+38:  #define AODV_MSG_MAX_SIZE RERR_SIZE + 100 * RERR_UDEST_SIZE
+设置AODV msgs的最大大小。RERR是潜在的
+最大的消息，取决于有多少不可到达的目的地
+包括在内。让我们限制为100。
+其他再次.h文件中是一些函数声明与宏变量定义。
