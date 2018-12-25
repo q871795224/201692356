@@ -51,7 +51,7 @@ hello_seqno 的值分别为接收到的 hello 消息的目的结点和序列号。
 加，至少为：ALLOWED_HELLO_LOSS*hello_interval。这条通往临近结点的路由，
 必须包含 hello 消息中最新的目的序列号。rt_table_update()函数完成了此功
 能。
-289-298hello消息超时更新函数 hello_update_timeout()。
+289-298hello消息超时更新(增加超时时间范围)函数 hello_update_timeout()。
 NS_INLINE void NS_CLASS hello_update_timeout(rt_table_t * rt,
     289：宏定义 HELLO_DELAY，因为网络上的处理延迟，所以我们允许 hello消息存在延时，在这里我们设置为 50。
 

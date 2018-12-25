@@ -17,7 +17,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Authors: Erik Nordström, <erik.nordstrom@it.uu.se>
- *          
+ *
  *
  *****************************************************************************/
 
@@ -190,7 +190,7 @@ void NS_CLASS rreq_process(RREQ * rreq, int rreqlen, struct in_addr ip_src,
 	return;
 
     DEBUG(LOG_DEBUG, 0, "ip_src=%s rreq_orig=%s rreq_dest=%s ttl=%d",
-	  ip_to_str(ip_src), ip_to_str(rreq_orig), ip_to_str(rreq_dest), 
+	  ip_to_str(ip_src), ip_to_str(rreq_orig), ip_to_str(rreq_dest),
 	  ip_ttl);
 
     if (rreqlen < (int) RREQ_SIZE) {
