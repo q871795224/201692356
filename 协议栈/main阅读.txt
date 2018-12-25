@@ -5,8 +5,10 @@
 131~201：定义int set_kernel_options()，用于设置内核选项
 203~231：定义int find_default_gw(void)，用于寻找默认网关
 236~256：struct sockaddr_in *get_if_info(char *ifname, int type)，根据名称和类型，寻找相应接口，并返回相应信息
-261~264：定义结构体callback
+261~264：定义结构体callback；用于将事件储存，便于未来回调处理。声明了callback数组 callbacks[5]
 268~278：定义int attach_callback_func(int fd, callback_func_t func)增加一个callback数据结构元素，包括一个描述符、一个函数，这个回调是干啥的？
+
+这里我们将了解如何加载内核模块……如果模块位于当前目录中。用那些。否则，回到mod.
 284~327：void load_modules(char *ifname)装载内核模块，若模块在当前目录则使用，否则调用modprode
 329~338：void remove_modules(void)删除某个模块
 340~463：void host_init(char *ifname)初始化某个端口
@@ -85,10 +87,14 @@ int sigaction( int signo, const struct sigaction *restrict act, struct sigaction
 setsid：当进程是会话的领头进程时setsid()调用失败并返回（-1）。setsid()调用成功后，返回新的会话的ID，调用setsid函数的进程成为新的会话的领头进程，并与其父进程的会话组和进程组脱离。由于会话对控制终端的独占性，进程同时与控制终端脱离
 623：atexit的功能是，先进后出。
 cleanup函数：应该是清除路由表啊什么的函数？存疑	
-626~636：初始化？存疑
+626~636：初始化
+
 */
 524~605：进入永真循环，根据读取的参数不同，执行不同的分支。具体情况如下
 待完善？
+539~542：-f，开启链路层反馈
+546~548：-i，表示要绑定的端口
+581~583：-x，禁用RREQ消息的拓展环搜索法
 606~610：检查是否在root权限下执行
 613~621：检查daemonize变量值，为1进入if代码块。
 	614~615：开辟子进程，关闭父进程。
@@ -96,6 +102,20 @@ cleanup函数：应该是清除路由表啊什么的函数？存疑
 	620：调用setsid函数使子进程成为新的会话的领头进程，并与其父进程的会话组和进程组脱离。
 623：调用atexit函数登记了函数cleanup，用于在main函数执行结束后，执行atexit中注册的函数cleanup()，用于？详见691行
 626~637：调用各初始化函数，进行数据接口，服务的初始化
+	626：初始化路由表
+	627：初始化日志
+	629：初始化host
+	631：初始化nl
+	632	
+	633：初始化aodv_socket
+	635~636：若开启链路层反馈，则初始化链路层
+
+
+
+
+
+
+
 641~646：设置套接字，什么用？nr_callbacks,nfds都是干啥的
 	641：清空文件描述符集readers，即初始化
 	642：for（i<nr_callbacks）
@@ -112,9 +132,17 @@ cleanup函数：应该是清除路由表啊什么的函数？存疑
 	659：hello_start()?
 661:若设置-r,即每隔一段时间记录路由表
 	662：初始化log_rt_table；?
-664~677:永真循环
+664~688:永真循环
 	665：将readers的内容复制进rfds中
-	667：
+	667：timeout = TQ队列中获取的新的timer
+	669~670：将timeout变得更加精确，至纳秒级，赋值给timeout_spec
+	使用pselect函数进行IO复用，允许进程指示内核等待多个事件中任一个发生，并只在有一个或多个事件发生或经历一段指定的时间后才唤醒它，并调用相应的回调函数来处理。
+	672：调用pselect阻塞进程，当rfds可读时，唤醒进程
+		673~676：若返回值<0,即出错，则报错并进入下一次循环
+	679~687：若n>0，即唤醒进程
+		680~686：在执行回调函数时，我们不需要任何定时器SIGALRM，因此我们阻塞定时器…… 
+			684：函数指针执行回调函数？实际上调用的是aodv_socket_read函数
+689：return 0；
 
 692~704:定义了静态函数static void cleanup(void)
 	694：写入日志

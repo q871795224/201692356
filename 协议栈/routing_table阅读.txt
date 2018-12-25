@@ -24,9 +24,9 @@ list_t		precursors	Á´±í£¬±íÊ¾ÁÚ¾Ó£»
 65~71£ººêroute entry flags
 74~75£ººêroute entry states
 81~85£º½á¹¹Ìårouting_table
-unsigned int	num_entries	?
-unsigned int	num_active	?
-list_t		tbl[64]		£¿
+unsigned int	num_entries	×ÜÊı
+unsigned int	num_active	»îÔ¾½ÚµãÊı
+list_t		tbl[64]		¶¨ÒåÁËÁ´±í½ÚµãÊı×é
 87£ºÉùÃ÷º¯Êıvoid precursor_list_destroy(rt_table_t * rt);´Ó»îÔ¾µÄÁÚ¾ÓÁ´±íÖĞÉ¾³ıËùÓĞµÄ½Úµã£¿ÊµÏÖ´úÂë¿´²»¶®
 92£ºÉùÃ÷Ò»¸örouting_table½á¹¹Ìå rt_tbl£¬ÊÇ¸ö×´Ì¬¼ÇÂ¼Æ÷£¬¼ÇÂ¼ÁËÂ·ÓÉ±íÖĞ»îÔ¾µÄ£¬²»»îÔ¾µÄÂ·ÓÉ±íÏî
 94£ºÉùÃ÷º¯Êıvoid rt_table_init();³õÊ¼»¯Â·ÓÉ±íÏà¹Ø±äÁ¿£¿INIT_LIST_HEADÊÇÊ²Ã´
@@ -58,6 +58,10 @@ unsigned int ifindex)£»Ôö¼ÓÒ»ÌõÂ·ÓÉ±íÏî£¬°üÀ¨Ä¿µÄµØÖ·¡¢ÏÂÒ»ÌøµØÖ·¡¢ÌøÊı¡¢Ä¿µÄµØĞ
 
 routing_table.cÖĞ
 44£ºÍâ²¿int±äÁ¿llfeedback
+
+46~57£ºvoid NS_CLASS rt_table_init()³õÊ¼»¯Â·ÓÉ±í
+	50~51£ºrt_tblµÄ»îÔ¾ÊıÓë×ÜÊıÖÃ0
+	54~56£º½«Â·ÓÉ±íÏî³õÊ¼»¯£¬¼´Á´±íÖ¸Õë¾ùÖ¸Ïò×Ô¼º
 
 74~80£ºunsigned int hashing(struct in_addr *addr, hash_value * hash)¼ÆËã¹şÏ£Öµ
 82~86£ºrt_table_insertº¯ÊıÍ·

@@ -110,3 +110,15 @@ RT_GATEWAY       			0x10
 
 
 #define CALLBACK_FUNCS 		5
+
+
+
+
+
+
+
+
+
+
+NS_PORT：临时解决方案：将两个变量移动到AODVUU类中，并将函数定义放在AODVUU类定义之后。            
+（这是为了避免在源期间通过defs.h运行多次由AODVUU类执行的代码提取。）      
