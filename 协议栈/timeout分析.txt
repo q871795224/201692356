@@ -1,0 +1,56 @@
+50-124：路由超时发现函数route_discovery_timeout()。
+void NS_CLASS route_discovery_timeout(void *arg)
+    61-62：检查当前路由是否存在。
+    63-65：记录当前时间并记录在日志中。
+    67-103：如果所查找的路由条目的req消息数比RREQ重试次数少，也就是说没有满足超时要求，则执行以下代码。
+        69-80：如果环路寻找算法可以找到，则在ttl<TTL临界值的时候，对ttl进行递增处理，在ttl>TTL临界值的时候，让ttl等于网路直连距离 NET_DIAMETER。并且在78-79行执行，设定一个新计时器来记录路由发现所用的时间，并把时限设置为 RING_TRAVERSAL_TIME。
+        80-85：环路找不到，则让路由条目的req数++，并设置新计时器记录路由发现所用时间，并把时限设置为 2 个 NET_TRAVERSAL_TIME。
+        88-90：记录日志，还有AODV会使用二进制指数退避RREP等待时间。
+        94-98：等待RREP的路由表条目不应该在2*NET_TRAVERSAL_TIME之前被清除。
+        100-101：发送rreq到所查找的路由条目 seek_entry。
+    103-124：超时时的做法，在一下代码中。
+        105：日志记录，没有找到路由。
+        110：向内核发送没有找到路由的消息通过nl_send_no_route_found_msg(seek_entry->dest_addr)函数。
+        112：将正在寻找的路由条目放入待修复项中。
+        114：将此路由条目从列表中取出
+        118-122：如果这条路径已经处于修复状态，那么在此节点应立即返回超时信号。
+126-181：本地超时修复函数local_repair_timeout()。
+void NS_CLASS local_repair_timeout(void *arg)
+    134-135：边界检测，如果输入路由不存在，返回。
+    137：设置默认的目的地，也就是广播。
+    140：设置这条路由的标志位为 REPAIR。
+    142-144：如果定义了NS_PORT这个宏，则使用nl_send_del_route_msg()函数向内核发送删除路由的请求，，使这条路由信息作废。
+    此时路由应该已经失效。147-170判断条件为路由失效时执行。
+    149：创建一个rerr消息，并广播通知其他节点。
+    151-156：若rt->nprec == 1， 则让rerr消息发往邻居。
+    157-166：若rt->nprec ！= 1，广播发送。
+    168-170：日志记录rrer消息发送情况。
+    176-180：如果修复超时，就清除队列里所有可能引用处于修复状态的数据包，并记录到日志里。
+184-207：路由到期超时函数route_expire_timeout()。
+void NS_CLASS route_expire_timeout(void *arg)  
+    190-194：边界检查，输入的路由不存在则忽略超时，并返回。
+    196-197：记录某条路由已经无法使用。
+    199-204：如果某条路由信息过于陈旧（可能长时间没有收到对应的 HELLO 消息），就设置这条路由为断开，并从路由表里将其删去。
+209-222：路由超时删除函数route_delete_timeout()。
+void NS_CLASS route_delete_timeout(void *arg)
+    216-217：边界检查，输入路由是否存在，不存在则返回。
+    219-211：从路由表里删除该路由信息，并记录日志。
+226-258：HELLO消息超时函数hello_timeout()。
+void NS_CLASS hello_timeout(void *arg)
+当我们停止从节点接收hello消息时，将调用该命令。目前，这与路由超时基本相同。
+    233-234：边界检查，输入路由是否存在，不存在则返回。
+    236：在变量now中存下当前时间。
+    238-240：日志记录下最后一条来自于当前路由的HELLO消息的时间。
+    242-249：如果可以修复此条路由，那么设置其标志位为REPAIR。
+    250-254：如果定义了宏NS_PORT，则执行此段代码，意思是要缓冲从接口队列挂起的数据包。
+    256：然后设置这条路由为断开。
+260-276：rrep_ack消息超时函数rrep_ack_timeout()。
+void NS_CLASS rrep_ack_timeout(void *arg)
+    268-269：边界检查，输入路由是否存在，不存在则返回。
+    273-275：回复消息传送失败，将此由加入黑名单，并记录日志。
+278-282：重启等待超时函数wait_on_reboot_timeout()。
+void NS_CLASS wait_on_reboot_timeout(void *arg)
+如果重启超时，不对此做任何处理，只是记录日志。
+286-291：数据包排队超时函数packet_queue_timeout()。
+void NS_CLASS packet_queue_timeout(void *arg)
+此函数只在定义了NS_PORT宏之后才有效。
