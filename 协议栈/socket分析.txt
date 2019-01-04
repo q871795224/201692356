@@ -19,7 +19,7 @@ cmsghdr* __cmsg_nxthdr(msghdr* msg, cmsghdr* cmsg) {
   return ptr;
 }
 71-74：重载了上述函数__cmsg_nxthdr_fix ，只有两个参数，通过msghdr找到control和controllen参数并返回调用__cmsg_nxthdr_fix 的调用结果。
-79-107：aodv套接字初始化函数
+79-107：aodv套接字初始化函数第一部分
     82-83：定义了两个结构体；
     84-88：变量初始化；
     92-95：如果this_host.nif 为0，退出程序 （exit(0)非正常退出）；
